@@ -79,7 +79,10 @@
     const API_BASE = 'https://be-saldo.vercel.app/api';
     const TAMBAH_JUMLAH = 15000;
     document.addEventListener('DOMContentLoaded', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const gmtPlus8 = new Date(now.getTime() + (8 * 60 - now.getTimezoneOffset()) * 60000);
+    const today = gmtPlus8.toISOString().split('T')[0];
+
     document.querySelectorAll('input[type="date"]').forEach(input => {
       input.value = today;
     });
