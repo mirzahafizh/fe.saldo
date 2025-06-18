@@ -78,6 +78,12 @@
   <script>
     const API_BASE = 'https://be-saldo.vercel.app/api';
     const TAMBAH_JUMLAH = 15000;
+    document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"]').forEach(input => {
+      input.value = today;
+    });
+  });
 
     async function fetchSaldo() {
       try {
