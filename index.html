@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kelola Saldo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<style>
+  .fc-daygrid-event {
+    display: inline-flex !important;
+    justify-content: center;
+    align-items: center;
+    height: 28px;
+    width: 28px;
+    border-radius: 9999px;
+    font-size: 18px;
+    font-weight: bold;
+    color: white; /* 👈 Ubah warna ikon menjadi putih */
+  }
+
+  .fc-daygrid-day-events {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+  }
+</style>
+
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <div class="max-w-2xl mx-auto p-6 mt-10 bg-white rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">Kelola Saldo</h1>
+
+    <!-- Form Tambah Saldo -->
+    <form id="formTambah" class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">Tambah Saldo</h2>
+      <p class="mb-2 text-sm text-gray-600">Jumlah tetap: <strong>Rp 15.000</strong></p>
+      <div class="mb-2">
+        <input type="date" name="tanggal" required class="w-full border rounded px-3 py-2" />
+      </div>
+      <button type="submit"
+              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded w-full">
+        Tambah Rp 15.000
+      </button>
+    </form>
+
+    <!-- Form Kurang Saldo -->
+    <form id="formKurang" class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">Kurangi Saldo</h2>
+      <div class="mb-2">
+        <input type="number" name="jumlah" placeholder="Jumlah (bebas)" required
+               class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="mb-2">
+        <input type="date" name="tanggal" required class="w-full border rounded px-3 py-2" />
+      </div>
+      <button type="submit"
+              class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded w-full">
+        Kurangi Saldo
+      </button>
+    </form>
+
+    <!-- Saldo Saat Ini -->
+    <div class="text-center mt-6 mb-8">
+      <h2 class="text-lg font-semibold">Saldo Saat Ini</h2>
+      <p id="saldo" class="text-2xl font-bold mt-2">Rp 0</p>
+    </div>
+
+    <!-- Kalender -->
+    <div id="calendar" class="mt-6"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'https://be-saldo.vercel.app/api/saldo';
+    const TAMBAH_JUMLAH = 15000;
+
+    async function fetchSaldo() {
+      try {
+        const res = await fetch(`${API_BASE}/saldo`);
+        const data = await res.json();
+        document.getElementById('saldo').innerText =
+          `Rp ${parseFloat(data.total || 0).toLocaleString('id-ID')}`;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('formTambah').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tanggal = e.target.tanggal.value;
+
+      const payload = {
+        jumlah: TAMBAH_JUMLAH,
+        tanggal,
+      };
+
+      const res = await fetch(`${API_BASE}/saldo/tambah`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      alert(data.message || data.error);
+      fetchSaldo();
+      loadCalendarLogs();
+      e.target.reset();
+    });
+
+    document.getElementById('formKurang').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        jumlah: form.jumlah.value,
+        tanggal: form.tanggal.value,
+      };
+
+      const res = await fetch(`${API_BASE}/saldo/kurang`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      alert(data.message || data.error);
+      fetchSaldo();
+      loadCalendarLogs();
+      form.reset();
+    });
+
+    async function loadCalendarLogs() {
+      try {
+        const res = await fetch(`${API_BASE}/saldo/logs`);
+        const logs = await res.json();
+
+        const events = logs.map(log => ({
+          title: log.tipe === 'tambah' ? '' : '',
+          start: log.tanggal,
+          allDay: true,
+          color: log.tipe === 'tambah' ? '#16a34a' : '#dc2626',
+          extendedProps: {
+            tooltip: `${log.tipe === 'tambah' ? 'Tambah' : 'Kurang'} Rp ${parseFloat(log.jumlah).toLocaleString('id-ID')}`
+          }
+        }));
+
+        const calendarEl = document.getElementById('calendar');
+
+        if (window.calendar && typeof window.calendar.destroy === 'function') {
+          window.calendar.destroy();
+        }
+
+        window.calendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: 'dayGridMonth',
+          height: 500,
+          events: events,
+          locale: 'id',
+          eventDisplay: 'block',
+          eventContent: function (arg) {
+            return {
+              html: `<span title="${arg.event.extendedProps.tooltip}">${arg.event.title}</span>`
+            };
+          }
+        });
+
+        window.calendar.render();
+      } catch (err) {
+        console.error('Gagal memuat log:', err);
+      }
+    }
+
+    fetchSaldo();
+    loadCalendarLogs();
+  </script>
+
+</body>
+</html>
